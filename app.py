@@ -1,13 +1,10 @@
 import streamlit as st
 import yfinance as yf
-import oandapyV20
-import oandapyV20.endpoints.instruments as instruments
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from scipy.stats import gaussian_kde
-from datetime import datetime, timezone
-import pytz
+from datetime import datetime
 import base64
 
 # ── Page config ──────────────────────────────────────────────
@@ -21,9 +18,24 @@ st.set_page_config(
 # ── Custom styling ────────────────────────────────────────────
 st.markdown("""
 <style>
+    /* Background */
     .stApp { background-color: #0d0d0d; }
     section[data-testid="stSidebar"] { background-color: #111111; }
+
+    /* Text */
     html, body, [class*="css"] { color: #e0e0e0; font-family: 'Inter', sans-serif; }
+
+    /* Sidebar title */
+    .sidebar-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #00b89c;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #222;
+        margin-bottom: 16px;
+    }
+
+    /* Stat cards */
     .stat-card {
         background: #161616;
         border: 1px solid #222;
@@ -33,30 +45,25 @@ st.markdown("""
     }
     .stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.08em; }
     .stat-value { font-size: 24px; font-weight: 600; color: #ffffff; margin-top: 4px; }
+
+    /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# ── OANDA client ──────────────────────────────────────────────
-OANDA_TOKEN = st.secrets["OANDA_TOKEN"]
-oanda_client = oandapyV20.API(access_token=OANDA_TOKEN, environment="practice")
-
 # ── Watchlist ─────────────────────────────────────────────────
-# source: "oanda" or "yfinance"
 WATCHLIST = {
-    "GBP/JPY":   {"source": "oanda",    "ticker": "GBP_JPY"},
-    "AUD/USD":   {"source": "oanda",    "ticker": "AUD_USD"},
-    "EUR/USD":   {"source": "oanda",    "ticker": "EUR_USD"},
-    "USD/JPY":   {"source": "oanda",    "ticker": "USD_JPY"},
-    "Gold":      {"source": "oanda",    "ticker": "XAU_USD"},
-    "S&P 500":   {"source": "oanda",    "ticker": "SPX500_USD"},
-    "Ethereum":  {"source": "yfinance", "ticker": "ETH-USD"},
-    "Bitcoin":   {"source": "yfinance", "ticker": "BTC-USD"},
+    "GBP/JPY":       "GBPJPY=X",
+    "AUD/USD":       "AUDUSD=X",
+    "EUR/USD":       "EURUSD=X",
+    "USD/JPY":       "USDJPY=X",
+    "Ethereum":      "ETH-USD",
+    "Bitcoin":       "BTC-USD",
+    "Gold":          "GC=F",
+    "S&P 500":       "ES=F",
 }
-
-PERIOD_DAYS = {"30d": 30, "60d": 60, "90d": 90, "6mo": 180, "1y": 365, "2y": 730}
 
 # ── Top header ────────────────────────────────────────────────
 st.markdown("""
@@ -79,7 +86,7 @@ with col_a:
 with col_b:
     period = st.selectbox(
         "Period",
-        list(PERIOD_DAYS.keys()),
+        ["30d", "60d", "90d"],
         index=1,
         label_visibility="collapsed"
     )
@@ -94,40 +101,7 @@ with col_d:
 
 # ── Data fetching ─────────────────────────────────────────────
 @st.cache_data(ttl=3600)
-def fetch_oanda(pair, days):
-    all_candles = []
-    end = datetime.now(timezone.utc)
-    start = end - pd.Timedelta(days=days)
-    from_time = start
-    chunk_days = 90
-
-    while from_time < end:
-        chunk_end = min(from_time + pd.Timedelta(days=chunk_days), end)
-        params = {
-            "from":        from_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "to":          chunk_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "granularity": "H1",
-        }
-        r = instruments.InstrumentsCandles(pair, params=params)
-        oanda_client.request(r)
-        candles = r.response["candles"]
-        if not candles:
-            break
-        all_candles.extend(candles)
-        from_time = chunk_end
-
-    df = pd.DataFrame([{
-        "time":  pd.to_datetime(c["time"]),
-        "High":  float(c["mid"]["h"]),
-        "Low":   float(c["mid"]["l"]),
-    } for c in all_candles])
-    df.set_index("time", inplace=True)
-    if df.index.tz is None:
-        df.index = df.index.tz_localize("UTC")
-    return df
-
-@st.cache_data(ttl=3600)
-def fetch_yfinance(ticker, period):
+def fetch_data(ticker, period):
     df = yf.download(ticker, period=period, interval="1h", auto_adjust=True)
     df.index = pd.to_datetime(df.index)
     if df.index.tz is None:
@@ -156,15 +130,12 @@ def get_high_low_times(df):
     return pd.DataFrame(results)
 
 # ── Main content ──────────────────────────────────────────────
-asset = WATCHLIST[selected_name]
+ticker = WATCHLIST[selected_name]
 st.markdown(f"## {selected_name} — Daily High/Low Formation")
 st.markdown(f"*Distribution of when the daily high and low most frequently form — last {period}*")
 
 with st.spinner("Loading data..."):
-    if asset["source"] == "oanda":
-        df = fetch_oanda(asset["ticker"], PERIOD_DAYS[period])
-    else:
-        df = fetch_yfinance(asset["ticker"], period)
+    df = fetch_data(ticker, period)
     hl_df = get_high_low_times(df)
 
 if hl_df.empty:
@@ -172,8 +143,8 @@ if hl_df.empty:
     st.stop()
 
 # ── Stat cards ────────────────────────────────────────────────
-high_peak  = int(round(hl_df["high_hour"].value_counts(bins=24).idxmax().mid))
-low_peak   = int(round(hl_df["low_hour"].value_counts(bins=24).idxmax().mid))
+high_peak = int(round(hl_df["high_hour"].value_counts(bins=24).idxmax().mid))
+low_peak  = int(round(hl_df["low_hour"].value_counts(bins=24).idxmax().mid))
 total_days = len(hl_df)
 
 col1, col2, col3 = st.columns(3)
@@ -222,6 +193,7 @@ if show_low:
         fillcolor="rgba(216,90,48,0.1)"
     ))
 
+# Session shading
 sessions = [
     (0,  2,  "rgba(255,255,255,0.02)", "Sydney"),
     (2,  8,  "rgba(255,255,255,0.02)", "Tokyo"),
@@ -229,8 +201,8 @@ sessions = [
     (13, 17, "rgba(100,80,220,0.05)",  "New York"),
 ]
 for start, end, color, label in sessions:
-    fig.add_vrect(x0=start, x1=end, fillcolor=color, line_width=0,
-                  annotation_text=label, annotation_position="top left",
+    fig.add_vrect(x0=start, x1=end, fillcolor=color, line_width=0, annotation_text=label,
+                  annotation_position="top left",
                   annotation=dict(font=dict(size=10, color="#555")))
 
 fig.update_layout(
@@ -261,9 +233,13 @@ col_utc, col_arrow, col_chi = st.columns([2, 1, 2])
 
 with col_utc:
     selected_utc = st.selectbox("UTC Time", utc_hours, label_visibility="collapsed")
+
 with col_arrow:
     st.markdown("<div style='text-align:center; font-size:24px; padding-top:4px;'>→</div>", unsafe_allow_html=True)
+
 with col_chi:
+    import pytz
+    from datetime import datetime
     utc_hour = int(selected_utc.split(":")[0])
     utc_time = datetime.now(pytz.utc).replace(hour=utc_hour, minute=0, second=0, microsecond=0)
     chicago_time = utc_time.astimezone(pytz.timezone("America/Chicago"))
