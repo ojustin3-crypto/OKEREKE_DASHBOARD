@@ -223,3 +223,24 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig, use_container_width=True)
+
+# ── UTC to Chicago Time Converter ────────────────────────────
+st.markdown("---")
+st.markdown("##### 🕐 UTC → Chicago Time Converter")
+
+utc_hours = [f"{h:02d}:00" for h in range(24)]
+col_utc, col_arrow, col_chi = st.columns([2, 1, 2])
+
+with col_utc:
+    selected_utc = st.selectbox("UTC Time", utc_hours, label_visibility="collapsed")
+
+with col_arrow:
+    st.markdown("<div style='text-align:center; font-size:24px; padding-top:4px;'>→</div>", unsafe_allow_html=True)
+
+with col_chi:
+    import pytz
+    from datetime import datetime
+    utc_hour = int(selected_utc.split(":")[0])
+    utc_time = datetime.now(pytz.utc).replace(hour=utc_hour, minute=0, second=0, microsecond=0)
+    chicago_time = utc_time.astimezone(pytz.timezone("America/Chicago"))
+    st.markdown(f"<div style='font-size:20px; font-weight:600; color:#00b89c; padding-top:6px;'>{chicago_time.strftime('%I:%M %p')} Chicago</div>", unsafe_allow_html=True)
