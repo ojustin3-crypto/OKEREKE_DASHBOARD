@@ -20,6 +20,7 @@ st.markdown("""
 <style>
     /* Background */
     .stApp { background-color: #0d0d0d; }
+    .block-container { padding-top: 0rem !important; }
     section[data-testid="stSidebar"] { background-color: #111111; }
 
     /* Text */
