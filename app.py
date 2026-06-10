@@ -320,15 +320,7 @@ if not today_df.empty:
         line=dict(color="#ff4444", width=1.5),
         yaxis="y2"
     ))
-    # pulsing dot at current high
-    fig.add_trace(go.Scatter(
-        x=[today_hours[-1]], y=[today_highs[-1]],
-        mode="markers",
-        name="Live High",
-        marker=dict(color="#ff4444", size=12, symbol="circle"),
-        yaxis="y2",
-        showlegend=False
-    ))
+   
 
     # today low line
     fig.add_trace(go.Scatter(
@@ -338,15 +330,7 @@ if not today_df.empty:
         line=dict(color="#00eeff", width=1.5),
         yaxis="y2"
     ))
-    # pulsing dot at current low
-    fig.add_trace(go.Scatter(
-        x=[today_hours[-1]], y=[today_lows[-1]],
-        mode="markers",
-        name="Live Low",
-        marker=dict(color="#00eeff", size=12, symbol="circle"),
-        yaxis="y2",
-        showlegend=False
-    ))
+   
 
 # Session shading
 sessions = [
