@@ -138,6 +138,34 @@ st.markdown("""
         color: #555 !important;
         font-style: italic;
     }
+    /* Sharp dropdown corners */
+    .stSelectbox > div > div {
+        border-radius: 0 !important;
+        border: 1px solid #333 !important;
+        background-color: #0f0f0f !important;
+        font-family: 'Times New Roman', Times, serif !important;
+    }
+    .stSelectbox > div > div:hover {
+        border-color: #00b89c !important;
+    }
+    [data-baseweb="select"] {
+        border-radius: 0 !important;
+    }
+    [data-baseweb="popover"] {
+        border-radius: 0 !important;
+    }
+    [data-baseweb="menu"] {
+        border-radius: 0 !important;
+        background-color: #0f0f0f !important;
+        border: 1px solid #222 !important;
+    }
+    [data-baseweb="option"] {
+        background-color: #0f0f0f !important;
+        font-family: 'Times New Roman', Times, serif !important;
+    }
+    [data-baseweb="option"]:hover {
+        background-color: #1a1a1a !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
