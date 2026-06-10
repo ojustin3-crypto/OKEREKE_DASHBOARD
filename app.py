@@ -194,9 +194,9 @@ if hl_df.empty:
     st.stop()
 
 # ── Today's live data ─────────────────────────────────────────
-today_high    = float(today_df["High"].max())  if not today_df.empty else None
-today_low     = float(today_df["Low"].min())   if not today_df.empty else None
-current_price = float(today_df["Close"].iloc[-1]) if not today_df.empty else None
+today_high    = float(today_df["High"].max().iloc[0])  if not today_df.empty else None
+today_low     = float(today_df["Low"].min().iloc[0])   if not today_df.empty else None
+current_price = float(today_df["Close"].iloc[-1].iloc[0]) if not today_df.empty else None
 
 # ── Stat cards ────────────────────────────────────────────────
 high_peak  = int(round(hl_df["high_hour"].value_counts(bins=24).idxmax().mid))
