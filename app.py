@@ -380,21 +380,19 @@ fig.update_layout(
         tickvals=list(range(0, 25)),
         ticktext=[f"{h:02d}:00" for h in range(0, 25)],
         gridcolor="#1a1a1a",
-        title="Time of Day (UTC)"
+        title=dict(text="Time of Day (UTC)", font=dict(color="#888")),
+        tickfont=dict(color="#888")
     ),
     yaxis=dict(
         gridcolor="#1a1a1a",
-        title="Density (Historical)",
-        titlefont=dict(color="#888"),
+        title=dict(text="Density (Historical)", font=dict(color="#888")),
         tickfont=dict(color="#888")
     ),
     yaxis2=dict(
-        title="Price (Today)",
-        titlefont=dict(color="#aaa"),
+        title=dict(text="Price (Today)", font=dict(color="#aaa")),
         tickfont=dict(color="#aaa"),
         overlaying="y",
         side="right",
-        gridcolor="#1a1a1a",
         showgrid=False
     ),
     legend=dict(bgcolor="#111", bordercolor="#222", borderwidth=1),
