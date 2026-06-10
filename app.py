@@ -11,7 +11,7 @@ import base64
 # ── Page config ──────────────────────────────────────────────
 st.set_page_config(
     page_title="Okereke Capital | Market Analytics",
-    page_icon="📈",
+    page_icon="O",
     layout="wide",
     initial_sidebar_state="auto"
 )
@@ -19,50 +19,125 @@ st.set_page_config(
 # ── Custom styling ────────────────────────────────────────────
 st.markdown("""
 <style>
-    .stApp { background-color: #0d0d0d; }
+    @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap');
+
+    /* Base */
+    .stApp {
+        background-color: #080808;
+        background-image:
+            linear-gradient(rgba(0,184,156,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0,184,156,0.03) 1px, transparent 1px);
+        background-size: 40px 40px;
+    }
     .block-container { padding-top: 0rem !important; }
-    section[data-testid="stSidebar"] { background-color: #111111; }
-    html, body, [class*="css"] { color: #e0e0e0; font-family: 'Inter', sans-serif; }
+    section[data-testid="stSidebar"] { background-color: #0d0d0d; }
+
+    html, body, [class*="css"], p, div, span, label {
+        font-family: 'Times New Roman', Times, serif !important;
+        color: #e0e0e0;
+    }
+
+    /* Inputs and selects */
+    .stSelectbox > div, .stCheckbox, .stButton {
+        font-family: 'Times New Roman', Times, serif !important;
+    }
+
+    /* Stat cards — sharp, left teal border */
     .stat-card {
-        background: #161616;
-        border: 1px solid #222;
-        border-radius: 10px;
+        background: #0f0f0f;
+        border: 1px solid #1a1a1a;
+        border-left: 3px solid #00b89c;
+        border-radius: 0;
         padding: 16px 20px;
         margin-bottom: 12px;
     }
-    .stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.08em; }
-    .stat-value { font-size: 24px; font-weight: 600; color: #ffffff; margin-top: 4px; }
+    .stat-label {
+        font-size: 10px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-family: 'Times New Roman', Times, serif !important;
+        font-style: italic;
+    }
+    .stat-value {
+        font-size: 26px;
+        font-weight: bold;
+        color: #ffffff;
+        margin-top: 6px;
+        font-family: 'Times New Roman', Times, serif !important;
+    }
+
+    /* Status card */
     .status-card {
-        border-radius: 10px;
+        border-radius: 0;
         padding: 14px 20px;
         margin-bottom: 12px;
-        border: 1px solid #222;
+        border: 1px solid #1a1a1a;
+        border-left: 3px solid #00b89c;
     }
+
+    /* Session badge — sharp */
     .session-badge {
         display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-        letter-spacing: 0.05em;
+        padding: 3px 10px;
+        border-radius: 0;
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        font-family: 'Times New Roman', Times, serif !important;
     }
+
+    /* Live indicator */
     @keyframes pulse {
         0% { opacity: 1; }
-        50% { opacity: 0.4; }
+        50% { opacity: 0.3; }
         100% { opacity: 1; }
     }
     .live-dot {
         display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
+        width: 7px;
+        height: 7px;
+        border-radius: 0;
         background: #ff4444;
         animation: pulse 1.5s infinite;
-        margin-right: 6px;
+        margin-right: 8px;
     }
+
+    /* Divider */
+    hr {
+        border-color: #1a1a1a !important;
+        margin: 24px 0 !important;
+    }
+
+    /* Hide Streamlit chrome */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+
+    /* Streamlit widget font override */
+    .stSelectbox label, .stCheckbox label {
+        font-family: 'Times New Roman', Times, serif !important;
+        font-size: 13px;
+        color: #888 !important;
+        font-style: italic;
+    }
+
+    button[kind="secondary"], button[kind="primary"] {
+        border-radius: 0 !important;
+        font-family: 'Times New Roman', Times, serif !important;
+        font-weight: bold;
+        border: 1px solid #333 !important;
+        background: #111 !important;
+        color: #fff !important;
+    }
+
+    /* Caption */
+    .stCaption {
+        font-family: 'Times New Roman', Times, serif !important;
+        color: #555 !important;
+        font-style: italic;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -89,24 +164,43 @@ def get_current_session():
         return "London", "#E07A4A"
     elif 12 <= utc_hour < 17:
         return "New York", "#7A4AE0"
-    elif 17 <= utc_hour < 21:
-        return "Off Hours", "#555555"
     else:
-        return "Off Hours", "#555555"
+        return "Off Hours", "#444444"
 
 # ── Top header ────────────────────────────────────────────────
 session_name, session_color = get_current_session()
 utc_now = datetime.now(timezone.utc)
 
 st.markdown(f"""
-<div style="display:flex; align-items:center; justify-content:space-between; 
-     padding: 8px 0 20px 0; border-bottom: 1px solid #222; margin-bottom: 24px;">
-    <div style="font-size:22px; font-weight:700; color:#ffffff; font-family:'Georgia', serif;">Okereke Capital</div>
-    <div style="display:flex; align-items:center; gap:16px;">
-        <span class="session-badge" style="background:{session_color}22; color:{session_color}; border:1px solid {session_color}44;">
-            ● {session_name} Session
-        </span>
-        <div style="font-size:12px; color:#555;">{utc_now.strftime('%H:%M UTC')} · Market Analytics</div>
+<div style="
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 20px 0 20px 0;
+    border-bottom: 1px solid #1a1a1a;
+    margin-bottom: 28px;
+">
+    <div style="
+        font-size: 26px;
+        font-weight: bold;
+        color: #ffffff;
+        font-family: 'Times New Roman', Times, serif;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    ">Okereke Capital</div>
+    <div style="display:flex; align-items:center; gap:20px;">
+        <span class="session-badge" style="
+            background: transparent;
+            color: {session_color};
+            border: 1px solid {session_color};
+        ">{session_name} Session</span>
+        <div style="
+            font-size: 11px;
+            color: #444;
+            font-family: 'Times New Roman', Times, serif;
+            font-style: italic;
+            letter-spacing: 0.05em;
+        ">{utc_now.strftime('%H:%M UTC')} &nbsp;·&nbsp; Market Analytics</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -131,7 +225,7 @@ with col_c:
     show_high = st.checkbox("High", value=True)
     show_low  = st.checkbox("Low",  value=True)
 with col_d:
-    if st.button("🔄 Refresh"):
+    if st.button("Refresh"):
         st.cache_data.clear()
         st.rerun()
     st.caption(f"{utc_now.strftime('%H:%M')} UTC")
@@ -178,13 +272,21 @@ def get_high_low_times(df):
     return pd.DataFrame(results)
 
 # ── Main content ──────────────────────────────────────────────
-asset    = WATCHLIST[selected_name]
-ticker   = asset["ticker"]
-pip      = asset["pip"]
+asset     = WATCHLIST[selected_name]
+ticker    = asset["ticker"]
+pip       = asset["pip"]
 threshold = asset["threshold"]
 
-st.markdown(f"## {selected_name} — Daily High/Low Formation")
-st.markdown(f"*Distribution of when the daily high and low most frequently form — last {period}*")
+st.markdown(f"""
+<div style="margin-bottom:6px;">
+    <span style="font-size:20px; font-weight:bold; color:#ffffff; font-family:'Times New Roman',Times,serif; text-transform:uppercase; letter-spacing:0.05em;">
+        {selected_name} &mdash; Daily High / Low Formation
+    </span>
+</div>
+<div style="font-size:13px; color:#555; font-family:'Times New Roman',Times,serif; font-style:italic; margin-bottom:20px;">
+    Distribution of when the daily high and low most frequently form &mdash; last {period}
+</div>
+""", unsafe_allow_html=True)
 
 with st.spinner("Loading data..."):
     df       = fetch_data(ticker, period)
@@ -196,8 +298,8 @@ if hl_df.empty:
     st.stop()
 
 # ── Today's live data ─────────────────────────────────────────
-today_high    = float(today_df["High"].max().iloc[0])  if not today_df.empty else None
-today_low     = float(today_df["Low"].min().iloc[0])   if not today_df.empty else None
+today_high    = float(today_df["High"].max().iloc[0])     if not today_df.empty else None
+today_low     = float(today_df["Low"].min().iloc[0])      if not today_df.empty else None
 current_price = float(today_df["Close"].iloc[-1].iloc[0]) if not today_df.empty else None
 
 # ── Stat cards ────────────────────────────────────────────────
@@ -232,47 +334,63 @@ if current_price and today_high and today_low:
 
     if pips_from_high <= threshold:
         status_color = "#ff4444"
-        status_label = "⚠️ Near Daily High"
-        status_bg    = "rgba(255,68,68,0.08)"
+        status_label = "Near Daily High"
+        status_bg    = "rgba(255,68,68,0.06)"
+        status_border = "#ff4444"
     elif pips_from_low <= threshold:
         status_color = "#00b89c"
-        status_label = "⚠️ Near Daily Low"
-        status_bg    = "rgba(0,184,156,0.08)"
+        status_label = "Near Daily Low"
+        status_bg    = "rgba(0,184,156,0.06)"
+        status_border = "#00b89c"
     else:
         status_color = "#888"
         status_label = "Mid Range"
-        status_bg    = "rgba(255,255,255,0.03)"
+        status_bg    = "rgba(255,255,255,0.02)"
+        status_border = "#333"
 
     daily_range     = (today_high - today_low) * pip
     range_completed = ((current_price - today_low) / (today_high - today_low) * 100) if today_high != today_low else 0
 
     st.markdown(f"""
-    <div class="status-card" style="background:{status_bg}; border-color:{status_color}44;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-            <div>
+    <div class="status-card" style="background:{status_bg}; border-left-color:{status_border};">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+            <div style="display:flex; align-items:center;">
                 <span class="live-dot"></span>
-                <span style="font-size:13px; font-weight:600; color:{status_color};">{status_label}</span>
+                <span style="
+                    font-size:12px;
+                    font-weight:bold;
+                    color:{status_color};
+                    font-family:'Times New Roman',Times,serif;
+                    text-transform:uppercase;
+                    letter-spacing:0.1em;
+                ">{status_label}</span>
             </div>
-            <div style="display:flex; gap:32px; flex-wrap:wrap;">
+            <div style="display:flex; gap:36px; flex-wrap:wrap;">
                 <div>
                     <div class="stat-label">Current Price</div>
-                    <div style="font-size:16px; font-weight:600; color:#fff;">{current_price:.4f}</div>
+                    <div style="font-size:15px; font-weight:bold; color:#fff; font-family:'Times New Roman',Times,serif;">{current_price:.4f}</div>
                 </div>
                 <div>
                     <div class="stat-label">Today's High</div>
-                    <div style="font-size:16px; font-weight:600; color:#ff4444;">{today_high:.4f} <span style="font-size:11px; color:#888;">({pips_from_high:.1f} pips away)</span></div>
+                    <div style="font-size:15px; font-weight:bold; color:#ff4444; font-family:'Times New Roman',Times,serif;">
+                        {today_high:.4f}
+                        <span style="font-size:11px; color:#555; font-style:italic;"> {pips_from_high:.1f} pips away</span>
+                    </div>
                 </div>
                 <div>
                     <div class="stat-label">Today's Low</div>
-                    <div style="font-size:16px; font-weight:600; color:#00b89c;">{today_low:.4f} <span style="font-size:11px; color:#888;">({pips_from_low:.1f} pips away)</span></div>
+                    <div style="font-size:15px; font-weight:bold; color:#00b89c; font-family:'Times New Roman',Times,serif;">
+                        {today_low:.4f}
+                        <span style="font-size:11px; color:#555; font-style:italic;"> {pips_from_low:.1f} pips away</span>
+                    </div>
                 </div>
                 <div>
                     <div class="stat-label">Day Range</div>
-                    <div style="font-size:16px; font-weight:600; color:#fff;">{daily_range:.1f} pips</div>
+                    <div style="font-size:15px; font-weight:bold; color:#fff; font-family:'Times New Roman',Times,serif;">{daily_range:.1f} pips</div>
                 </div>
                 <div>
                     <div class="stat-label">Range Position</div>
-                    <div style="font-size:16px; font-weight:600; color:#fff;">{range_completed:.0f}%</div>
+                    <div style="font-size:15px; font-weight:bold; color:#fff; font-family:'Times New Roman',Times,serif;">{range_completed:.0f}%</div>
                 </div>
             </div>
         </div>
@@ -301,9 +419,9 @@ if show_low:
         x=x, y=kde_low(x),
         mode="lines",
         name="Historical Low",
-        line=dict(color="#D85A30", width=2, dash="dash"),
+        line=dict(color="#cc4422", width=2, dash="dash"),
         fill="tozeroy",
-        fillcolor="rgba(216,90,48,0.08)",
+        fillcolor="rgba(204,68,34,0.08)",
         yaxis="y1"
     ))
 
@@ -334,43 +452,51 @@ if not today_df.empty:
 
 # Session shading
 sessions = [
-    (0,  7,  "rgba(255,255,255,0.02)", "Tokyo"),
-    (7,  12, "rgba(255,180,50,0.05)",  "London"),
-    (12, 17, "rgba(100,80,220,0.05)",  "New York"),
-    (21, 24, "rgba(255,255,255,0.02)", "Sydney"),
+    (0,  7,  "rgba(255,255,255,0.015)", "Tokyo"),
+    (7,  12, "rgba(255,160,40,0.04)",   "London"),
+    (12, 17, "rgba(90,70,200,0.04)",    "New York"),
+    (21, 24, "rgba(255,255,255,0.015)", "Sydney"),
 ]
 for start, end, color, label in sessions:
     fig.add_vrect(x0=start, x1=end, fillcolor=color, line_width=0,
                   annotation_text=label, annotation_position="top left",
-                  annotation=dict(font=dict(size=10, color="#555")))
+                  annotation=dict(font=dict(size=10, color="#444",
+                                            family="Times New Roman, Times, serif")))
 
-# current time vertical line
+# Current time line
 fig.add_vline(
     x=current_hour if not today_df.empty else datetime.now(timezone.utc).hour,
     line_width=1,
     line_dash="dot",
-    line_color="rgba(255,255,255,0.2)",
+    line_color="rgba(255,255,255,0.15)",
     annotation_text="Now",
     annotation_position="top",
-    annotation=dict(font=dict(size=10, color="rgba(255,255,255,0.3)"))
+    annotation=dict(font=dict(size=10, color="rgba(255,255,255,0.25)",
+                               family="Times New Roman, Times, serif"))
 )
 
 fig.update_layout(
-    paper_bgcolor="#0d0d0d",
-    plot_bgcolor="#0d0d0d",
-    font=dict(color="#e0e0e0"),
+    paper_bgcolor="#080808",
+    plot_bgcolor="#080808",
+    font=dict(color="#e0e0e0", family="Times New Roman, Times, serif"),
     xaxis=dict(
         tickmode="array",
         tickvals=list(range(0, 25)),
         ticktext=[f"{h:02d}:00" for h in range(0, 25)],
-        gridcolor="#1a1a1a",
-        title=dict(text="Time of Day (UTC)", font=dict(color="#888")),
-        tickfont=dict(color="#888")
+        gridcolor="#111111",
+        title=dict(text="Time of Day (UTC)", font=dict(color="#555",
+                   family="Times New Roman, Times, serif")),
+        tickfont=dict(color="#666", family="Times New Roman, Times, serif"),
+        linecolor="#222",
+        showline=True
     ),
     yaxis=dict(
-        gridcolor="#1a1a1a",
-        title=dict(text="Density (Historical)", font=dict(color="#888")),
-        tickfont=dict(color="#888")
+        gridcolor="#111111",
+        title=dict(text="Density", font=dict(color="#555",
+                   family="Times New Roman, Times, serif")),
+        tickfont=dict(color="#666", family="Times New Roman, Times, serif"),
+        linecolor="#222",
+        showline=True
     ),
     yaxis2=dict(
         title=dict(text="", font=dict(color="#aaa")),
@@ -380,16 +506,26 @@ fig.update_layout(
         showgrid=False,
         showticklabels=False
     ),
-    legend=dict(bgcolor="#111", bordercolor="#222", borderwidth=1),
-    margin=dict(l=40, r=60, t=20, b=60),
+    legend=dict(
+        bgcolor="#0f0f0f",
+        bordercolor="#222",
+        borderwidth=1,
+        font=dict(family="Times New Roman, Times, serif", size=12)
+    ),
+    margin=dict(l=40, r=40, t=20, b=60),
     height=440
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
 # ── UTC to Chicago Time Converter ────────────────────────────
-st.markdown("---")
-st.markdown("##### 🕐 UTC → Chicago Time Converter")
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown("""
+<div style="font-size:13px; font-weight:bold; color:#888; font-family:'Times New Roman',Times,serif;
+     text-transform:uppercase; letter-spacing:0.1em; margin-bottom:12px;">
+    UTC &rarr; Chicago Time
+</div>
+""", unsafe_allow_html=True)
 
 utc_hours = [f"{h:02d}:00" for h in range(24)]
 col_utc, col_arrow, col_chi = st.columns([2, 1, 2])
@@ -397,9 +533,15 @@ col_utc, col_arrow, col_chi = st.columns([2, 1, 2])
 with col_utc:
     selected_utc = st.selectbox("UTC Time", utc_hours, label_visibility="collapsed")
 with col_arrow:
-    st.markdown("<div style='text-align:center; font-size:24px; padding-top:4px;'>→</div>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style='text-align:center; font-size:20px; padding-top:8px; color:#444;
+         font-family:"Times New Roman",Times,serif;'>&rarr;</div>
+    """, unsafe_allow_html=True)
 with col_chi:
-    utc_hour   = int(selected_utc.split(":")[0])
-    utc_time   = datetime.now(pytz.utc).replace(hour=utc_hour, minute=0, second=0, microsecond=0)
-    chi_time   = utc_time.astimezone(pytz.timezone("America/Chicago"))
-    st.markdown(f"<div style='font-size:20px; font-weight:600; color:#00b89c; padding-top:6px;'>{chi_time.strftime('%I:%M %p')} Chicago</div>", unsafe_allow_html=True)
+    utc_hour = int(selected_utc.split(":")[0])
+    utc_time = datetime.now(pytz.utc).replace(hour=utc_hour, minute=0, second=0, microsecond=0)
+    chi_time = utc_time.astimezone(pytz.timezone("America/Chicago"))
+    st.markdown(f"""
+    <div style='font-size:20px; font-weight:bold; color:#00b89c; padding-top:6px;
+         font-family:"Times New Roman",Times,serif;'>{chi_time.strftime('%I:%M %p')} Chicago</div>
+    """, unsafe_allow_html=True)
