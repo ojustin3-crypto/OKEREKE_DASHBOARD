@@ -469,7 +469,7 @@ for start, end, color, label in sessions:
 
 # Current time line
 fig.add_vline(
-    x=current_hour if not today_df.empty else datetime.now(timezone.utc).hour,
+    x=datetime.now(timezone.utc).hour + datetime.now(timezone.utc).minute / 60,
     line_width=1,
     line_dash="dot",
     line_color="rgba(255,255,255,0.15)",
