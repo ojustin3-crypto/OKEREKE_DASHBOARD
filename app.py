@@ -179,6 +179,7 @@ WATCHLIST = {
     "Bitcoin":  {"ticker": "BTC-USD",   "pip": 1,     "threshold": 500},
     "Gold":     {"ticker": "GC=F",      "pip": 10,    "threshold": 30},
     "S&P 500":  {"ticker": "ES=F",      "pip": 1,     "threshold": 5},
+    "US Oil":   {"ticker": "CL=F",  "pip": 100,  "threshold": 50},
 }
 
 # ── Session detector ──────────────────────────────────────────
