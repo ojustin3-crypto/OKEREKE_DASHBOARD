@@ -365,10 +365,10 @@ fig.add_vline(
     x=current_hour if not today_df.empty else datetime.now(timezone.utc).hour,
     line_width=1,
     line_dash="dot",
-    line_color="#ffffff33",
+    line_color="rgba(255,255,255,0.2)",
     annotation_text="Now",
     annotation_position="top",
-    annotation=dict(font=dict(size=10, color="#ffffff55"))
+    annotation=dict(font=dict(size=10, color="rgba(255,255,255,0.3)"))
 )
 
 fig.update_layout(
