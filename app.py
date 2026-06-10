@@ -11,7 +11,7 @@ import base64
 # ── Page config ──────────────────────────────────────────────
 st.set_page_config(
     page_title="Okereke Capital | Market Analytics",
-    page_icon="O",
+   page_icon=None,
     layout="wide",
     initial_sidebar_state="auto"
 )
