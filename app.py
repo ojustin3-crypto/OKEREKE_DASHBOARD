@@ -308,8 +308,8 @@ if show_low:
 # ── Today's live overlay ──────────────────────────────────────
 if not today_df.empty:
     today_hours  = [t.hour + t.minute / 60 for t in today_df.index]
-    today_highs  = today_df["High"].cummax().tolist()
-    today_lows   = today_df["Low"].cummin().tolist()
+today_highs  = today_df["High"].iloc[:, 0].cummax().tolist()
+today_lows   = today_df["Low"].iloc[:, 0].cummin().tolist()
     current_hour = datetime.now(timezone.utc).hour + datetime.now(timezone.utc).minute / 60
 
     # today high line
