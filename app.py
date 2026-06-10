@@ -325,8 +325,7 @@ if not today_df.empty:
         x=[today_hours[-1]], y=[today_highs[-1]],
         mode="markers",
         name="Live High",
-        marker=dict(color="#ff4444", size=10, symbol="circle",
-                    line=dict(color="#ff444488", width=6)),
+        marker=dict(color="#ff4444", size=12, symbol="circle"),
         yaxis="y2",
         showlegend=False
     ))
@@ -344,8 +343,7 @@ if not today_df.empty:
         x=[today_hours[-1]], y=[today_lows[-1]],
         mode="markers",
         name="Live Low",
-        marker=dict(color="#00eeff", size=10, symbol="circle",
-                    line=dict(color="#00eeff88", width=6)),
+        marker=dict(color="#00eeff", size=12, symbol="circle"),
         yaxis="y2",
         showlegend=False
     ))
