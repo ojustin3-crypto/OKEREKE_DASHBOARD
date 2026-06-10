@@ -172,6 +172,7 @@ st.markdown("""
 # ── Watchlist ─────────────────────────────────────────────────
 WATCHLIST = {
     "GBP/JPY":  {"ticker": "GBPJPY=X",  "pip": 100,   "threshold": 10},
+    "GBP/AUD":  {"ticker": "GBPAUD=X",  "pip": 10000,  "threshold": 10},
     "AUD/USD":  {"ticker": "AUDUSD=X",  "pip": 10000, "threshold": 10},
     "EUR/USD":  {"ticker": "EURUSD=X",  "pip": 10000, "threshold": 10},
     "USD/JPY":  {"ticker": "USDJPY=X",  "pip": 100,   "threshold": 10},
