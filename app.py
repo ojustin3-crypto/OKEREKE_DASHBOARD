@@ -81,14 +81,16 @@ WATCHLIST = {
 # ── Session detector ──────────────────────────────────────────
 def get_current_session():
     utc_hour = datetime.now(timezone.utc).hour
-    if 22 <= utc_hour or utc_hour < 2:
+    if 21 <= utc_hour or utc_hour < 0:
         return "Sydney", "#4A9EE0"
-    elif 2 <= utc_hour < 8:
+    elif 0 <= utc_hour < 7:
         return "Tokyo", "#E0B44A"
-    elif 8 <= utc_hour < 13:
+    elif 7 <= utc_hour < 12:
         return "London", "#E07A4A"
-    elif 13 <= utc_hour < 17:
+    elif 12 <= utc_hour < 17:
         return "New York", "#7A4AE0"
+    elif 17 <= utc_hour < 21:
+        return "Off Hours", "#555555"
     else:
         return "Off Hours", "#555555"
 
@@ -332,10 +334,10 @@ if not today_df.empty:
 
 # Session shading
 sessions = [
-    (0,  2,  "rgba(255,255,255,0.02)", "Sydney"),
-    (2,  8,  "rgba(255,255,255,0.02)", "Tokyo"),
-    (8,  13, "rgba(255,180,50,0.05)",  "London"),
-    (13, 17, "rgba(100,80,220,0.05)",  "New York"),
+    (0,  7,  "rgba(255,255,255,0.02)", "Tokyo"),
+    (7,  12, "rgba(255,180,50,0.05)",  "London"),
+    (12, 17, "rgba(100,80,220,0.05)",  "New York"),
+    (21, 24, "rgba(255,255,255,0.02)", "Sydney"),
 ]
 for start, end, color, label in sessions:
     fig.add_vrect(x0=start, x1=end, fillcolor=color, line_width=0,
