@@ -74,7 +74,7 @@ WATCHLIST = {
     "USD/JPY":  {"ticker": "USDJPY=X",  "pip": 100,   "threshold": 10},
     "Ethereum": {"ticker": "ETH-USD",   "pip": 1,     "threshold": 50},
     "Bitcoin":  {"ticker": "BTC-USD",   "pip": 1,     "threshold": 500},
-    "Gold":     {"ticker": "GC=F",      "pip": 10,    "threshold": 2},
+    "Gold":     {"ticker": "GC=F",      "pip": 10,    "threshold": 30},
     "S&P 500":  {"ticker": "ES=F",      "pip": 1,     "threshold": 5},
 }
 
