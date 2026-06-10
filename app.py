@@ -312,25 +312,23 @@ if not today_df.empty:
     today_lows   = today_df["Low"].iloc[:, 0].cummin().tolist()
     current_hour = datetime.now(timezone.utc).hour + datetime.now(timezone.utc).minute / 60
 
-    # today high line
     fig.add_trace(go.Scatter(
         x=today_hours, y=today_highs,
         mode="lines",
         name="Today's High",
         line=dict(color="#ff4444", width=1.5),
-        yaxis="y2"
+        yaxis="y2",
+        showlegend=False
     ))
-   
 
-    # today low line
     fig.add_trace(go.Scatter(
         x=today_hours, y=today_lows,
         mode="lines",
         name="Today's Low",
         line=dict(color="#00eeff", width=1.5),
-        yaxis="y2"
+        yaxis="y2",
+        showlegend=False
     ))
-   
 
 # Session shading
 sessions = [
@@ -373,11 +371,12 @@ fig.update_layout(
         tickfont=dict(color="#888")
     ),
     yaxis2=dict(
-        title=dict(text="Price (Today)", font=dict(color="#aaa")),
+        title=dict(text="", font=dict(color="#aaa")),
         tickfont=dict(color="#aaa"),
         overlaying="y",
         side="right",
-        showgrid=False
+        showgrid=False,
+        showticklabels=False
     ),
     legend=dict(bgcolor="#111", bordercolor="#222", borderwidth=1),
     margin=dict(l=40, r=60, t=20, b=60),
