@@ -10,7 +10,7 @@ import base64
 
 # ── Page config ──────────────────────────────────────────────
 st.set_page_config(
-    page_title="Okereke Capital | Market Analytics",
+    page_title="OCAP Optimal .01",
    page_icon=None,
     layout="wide",
     initial_sidebar_state="auto"
