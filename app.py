@@ -10,7 +10,7 @@ import base64
 
 # ── Page config ──────────────────────────────────────────────
 st.set_page_config(
-    page_title="OCAP Optimal .01",
+    page_title="OCAP Optimal 0.1",
    page_icon=None,
     layout="wide",
     initial_sidebar_state="auto"
@@ -241,8 +241,8 @@ st.markdown(f"""
         color: #ffffff;
         font-family: 'Times New Roman', Times, serif;
         letter-spacing: 0.06em;
-        text-transform: uppercase;
-    ">Okereke Capital</div>
+        text-transform: none;
+    ">OCAP Optimal 0.1</div>
     <div style="display:flex; align-items:center; gap:20px;">
         <span class="session-badge" style="
             background: transparent;
