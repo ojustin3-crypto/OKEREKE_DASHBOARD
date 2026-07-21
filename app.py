@@ -241,7 +241,7 @@ st.markdown(f"""
         color: #ffffff;
         font-family: 'Times New Roman', Times, serif;
         letter-spacing: 0.06em;
-        text-transform: none;
+        text-transform: uppercase;
     ">OCAP Optimal 0.1</div>
     <div style="display:flex; align-items:center; gap:20px;">
         <span class="session-badge" style="
