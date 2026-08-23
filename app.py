@@ -275,7 +275,7 @@ CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "NZD", "CHF"]
 TF_CONFIG = {
     "30m":    {"interval": "30m",  "period": "7d",  "resample": None},
     "1H":     {"interval": "1h",   "period": "30d", "resample": None},
-    "4H":     {"interval": "1h",   "period": "60d", "resample": "4h"},
+    "4H (4x1H Avg)":     {"interval": "1h",   "period": "60d", "resample": "4h"},
     "Daily":  {"interval": "1d",   "period": "1y",  "resample": None},
     "Weekly": {"interval": "1wk",  "period": "2y",  "resample": None},
 }
@@ -645,7 +645,7 @@ with tab2:
     with cs_col1:
         timeframe = st.selectbox(
             "Timeframe",
-            options=["30m", "1H", "4H", "Daily", "Weekly"],
+            options=["30m", "1H", "4H (4x1H Avg)", "Daily", "Weekly"],
             index=1,
             label_visibility="collapsed"
         )
