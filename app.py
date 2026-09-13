@@ -10,7 +10,7 @@ import base64
 
 # ── Page config ──────────────────────────────────────────────
 st.set_page_config(
-    page_title="OCAP Dash#1",
+    page_title="OCAP Evergreen (BETA)",
     page_icon=None,
     layout="wide",
     initial_sidebar_state="auto"
@@ -314,7 +314,7 @@ st.markdown(f"""
         font-family: 'Times New Roman', Times, serif;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-    ">Dashboard1</div>
+    ">Okereke Capital | OCAP Evergreen 0.1</div>
     <div style="display:flex; align-items:center; gap:20px;">
         <span class="session-badge" style="
             background: transparent;
