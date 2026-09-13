@@ -313,8 +313,8 @@ st.markdown(f"""
         color: #ffffff;
         font-family: 'Times New Roman', Times, serif;
         letter-spacing: 0.06em;
-        text-transform: uppercase;
-    ">Okereke Capital | OCAP Evergreen 0.1</div>
+        text-transform: none;
+    ">Okereke Capital | OCAP Evergreen 0.1 (BETA)</div>
     <div style="display:flex; align-items:center; gap:20px;">
         <span class="session-badge" style="
             background: transparent;
