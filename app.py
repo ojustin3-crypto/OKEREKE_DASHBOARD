@@ -279,7 +279,13 @@ TF_CONFIG = {
     "Daily":  {"interval": "1d",   "period": "1y",  "resample": None},
     "Weekly": {"interval": "1wk",  "period": "2y",  "resample": None},
 }
-
+RSI_TF_CONFIG = {
+    "5m":  {"interval": "5m",  "period": "2d"},
+    "15m": {"interval": "15m", "period": "5d"},
+    "30m": {"interval": "30m", "period": "7d"},
+    "1H":  {"interval": "1h",  "period": "30d"},
+    "4H":  {"interval": "1h",  "period": "60d", "resample": "4h"},
+}
 # ── Session detector ──────────────────────────────────────────
 def get_current_session():
     utc_hour = datetime.now(timezone.utc).hour
@@ -333,7 +339,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Tabs ──────────────────────────────────────────────────────
-tab1, tab2 = st.tabs(["Daily High / Low Formation", "Currency Strength"])
+tab1, tab2, tab3 = st.tabs(["Daily High / Low Formation", "Currency Strength", "RSI Strength"])
 
 
 # ════════════════════════════════════════════════════════════════
@@ -906,6 +912,286 @@ with tab2:
          font-family:'Times New Roman',Times,serif; font-style:italic;">
         Scores based on last closed {timeframe} candle &nbsp;&middot;&nbsp;
         Rows highlighted teal where |spread| &ge; 8 &nbsp;&middot;&nbsp;
+        Data via yfinance &nbsp;&middot;&nbsp; Refreshed {utc_now.strftime('%H:%M UTC')}
+    </div>
+    """, unsafe_allow_html=True)
+# ════════════════════════════════════════════════════════════════
+# TAB 3 — RSI Strength (Overbought / Oversold)
+# ════════════════════════════════════════════════════════════════
+with tab3:
+
+    # ── Controls ──────────────────────────────────────────────
+    rsi_col1, rsi_col2 = st.columns([2, 6])
+
+    with rsi_col1:
+        rsi_tf = st.selectbox(
+            "RSI Timeframe",
+            options=["5m", "15m", "30m", "1H", "4H"],
+            index=3,
+            label_visibility="collapsed",
+            key="rsi_tf"
+        )
+    with rsi_col2:
+        if st.button("Refresh  ", key="rsi_refresh"):
+            st.cache_data.clear()
+            st.rerun()
+
+    st.markdown(f"""
+    <div style="margin-bottom:6px; margin-top:8px;">
+        <span style="font-size:20px; font-weight:bold; color:#ffffff;
+            font-family:'Times New Roman',Times,serif; text-transform:uppercase; letter-spacing:0.05em;">
+            RSI Strength &mdash; {rsi_tf}
+        </span>
+    </div>
+    <div style="font-size:13px; color:#555; font-family:'Times New Roman',Times,serif;
+        font-style:italic; margin-bottom:24px;">
+        RSI(14) across all 28 pairs &mdash; sorted by most extreme reading &mdash;
+        Overbought &ge; 70 &nbsp;&middot;&nbsp; Oversold &le; 30
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── RSI calculation ───────────────────────────────────────
+    def calc_rsi(series, period=14):
+        delta = series.diff()
+        gain  = delta.clip(lower=0)
+        loss  = -delta.clip(upper=0)
+        avg_gain = gain.ewm(com=period - 1, min_periods=period).mean()
+        avg_loss = loss.ewm(com=period - 1, min_periods=period).mean()
+        rs  = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        return rsi
+
+    @st.cache_data(ttl=120)
+    def fetch_rsi_data(rsi_tf):
+        cfg     = RSI_TF_CONFIG[rsi_tf]
+        tickers = [v["ticker"] for v in FOREX_PAIRS.values()]
+        pair_list = list(FOREX_PAIRS.keys())
+        results = {}
+        failed  = []
+
+        try:
+            raw = yf.download(
+                tickers,
+                period=cfg["period"],
+                interval=cfg["interval"],
+                auto_adjust=True,
+                group_by="ticker",
+                progress=False
+            )
+        except Exception:
+            return {}, []
+
+        for pair_name in pair_list:
+            tkr = FOREX_PAIRS[pair_name]["ticker"]
+            try:
+                df = raw[tkr].copy() if len(tickers) > 1 else raw.copy()
+                df = df.dropna(subset=["Close"])
+
+                if cfg.get("resample"):
+                    df = df.resample(cfg["resample"]).agg({
+                        "Open":  "first",
+                        "High":  "max",
+                        "Low":   "min",
+                        "Close": "last",
+                    }).dropna(subset=["Close"])
+
+                if len(df) < 20:
+                    failed.append(pair_name)
+                    continue
+
+                close  = df["Close"].squeeze()
+                rsi    = calc_rsi(close)
+                latest = float(rsi.iloc[-1])
+
+                if pd.isna(latest):
+                    failed.append(pair_name)
+                    continue
+
+                results[pair_name] = {
+                    "rsi":   round(latest, 2),
+                    "close": float(df["Close"].iloc[-1].squeeze() if hasattr(df["Close"].iloc[-1], 'squeeze') else df["Close"].iloc[-1]),
+                }
+
+            except Exception:
+                failed.append(pair_name)
+                continue
+
+        return results, failed
+
+    with st.spinner("Calculating RSI..."):
+        rsi_results, rsi_failed = fetch_rsi_data(rsi_tf)
+
+    if not rsi_results:
+        st.error("Could not retrieve RSI data. Try a different timeframe.")
+        st.stop()
+
+    # ── Sort by most extreme RSI ──────────────────────────────
+    def rsi_extremity(rsi_val):
+        return abs(rsi_val - 50)
+
+    sorted_rsi = sorted(rsi_results.items(), key=lambda x: rsi_extremity(x[1]["rsi"]), reverse=True)
+
+    def rsi_label(v):
+        if v >= 70:   return "OVERBOUGHT",  "#cc4422", "rgba(204,68,34,0.08)",  "#cc4422"
+        if v <= 30:   return "OVERSOLD",    "#00b89c", "rgba(0,184,156,0.08)",  "#00b89c"
+        if v >= 60:   return "Bullish",     "#e0a060", "transparent",           "transparent"
+        if v <= 40:   return "Bearish",     "#6090e0", "transparent",           "transparent"
+        return "Neutral", "#444", "transparent", "transparent"
+
+    # ════════════════════════════════
+    # DISPLAY A — Table
+    # ════════════════════════════════
+    st.markdown("""
+    <div style="font-size:13px; font-weight:bold; color:#888; font-family:'Times New Roman',Times,serif;
+         text-transform:uppercase; letter-spacing:0.1em; margin-bottom:14px;">
+        RSI Table &mdash; Ranked by Extremity
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Table header
+    st.markdown("""
+    <div style="display:flex; align-items:center; padding:6px 16px;
+         border-bottom:1px solid #222; margin-bottom:4px;">
+        <span style="font-size:10px; color:#444; text-transform:uppercase; letter-spacing:0.12em;
+            font-family:'Times New Roman',Times,serif; font-style:italic; width:130px;">Pair</span>
+        <span style="font-size:10px; color:#444; text-transform:uppercase; letter-spacing:0.12em;
+            font-family:'Times New Roman',Times,serif; font-style:italic; width:100px; text-align:center;">RSI (14)</span>
+        <span style="font-size:10px; color:#444; text-transform:uppercase; letter-spacing:0.12em;
+            font-family:'Times New Roman',Times,serif; font-style:italic; width:140px; text-align:center;">Signal</span>
+        <span style="font-size:10px; color:#444; text-transform:uppercase; letter-spacing:0.12em;
+            font-family:'Times New Roman',Times,serif; font-style:italic; flex:1;">RSI Bar</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    for pair_name, data in sorted_rsi:
+        rsi_val = data["rsi"]
+        label, label_color, row_bg, border_color = rsi_label(rsi_val)
+
+        border_style = f"border-left: 3px solid {border_color};" if border_color != "transparent" else "border-left: 3px solid #1a1a1a;"
+
+        # RSI bar: fill % out of 100
+        bar_fill  = rsi_val
+        bar_color = "#cc4422" if rsi_val >= 70 else "#00b89c" if rsi_val <= 30 else "#333"
+
+        # OB/OS zone markers at 30 and 70
+        st.markdown(f"""
+        <div style="display:flex; align-items:center; padding:9px 16px;
+             border-bottom:1px solid #111; background:{row_bg}; {border_style}">
+            <span style="font-size:14px; font-weight:bold; color:#fff;
+                font-family:'Times New Roman',Times,serif; width:130px;">{pair_name}</span>
+            <span style="font-size:15px; font-weight:bold; color:#fff;
+                font-family:'Times New Roman',Times,serif; width:100px; text-align:center;">{rsi_val:.1f}</span>
+            <span style="font-size:11px; font-weight:bold; color:{label_color};
+                font-family:'Times New Roman',Times,serif; width:140px; text-align:center;
+                text-transform:uppercase; letter-spacing:0.1em;">{label}</span>
+            <div style="flex:1; position:relative; height:6px; background:#111; border-radius:0;">
+                <!-- OB line at 70% -->
+                <div style="position:absolute; left:70%; top:-3px; width:1px; height:12px; background:#cc442255;"></div>
+                <!-- OS line at 30% -->
+                <div style="position:absolute; left:30%; top:-3px; width:1px; height:12px; background:#00b89c55;"></div>
+                <!-- Fill -->
+                <div style="width:{bar_fill}%; height:100%; background:{bar_color}; opacity:0.8;"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ════════════════════════════════
+    # DISPLAY B — Heatmap grid
+    # ════════════════════════════════
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="font-size:13px; font-weight:bold; color:#888; font-family:'Times New Roman',Times,serif;
+         text-transform:uppercase; letter-spacing:0.1em; margin-bottom:14px;">
+        RSI Heatmap &mdash; Color Intensity by Extremity
+    </div>
+    """, unsafe_allow_html=True)
+
+    pairs_hm   = [p for p, _ in sorted_rsi]
+    rsi_vals   = [d["rsi"] for _, d in sorted_rsi]
+
+    def rsi_to_color(v):
+        if v >= 80:   return "#8b1a00"
+        if v >= 70:   return "#cc4422"
+        if v >= 60:   return "#995533"
+        if v >= 55:   return "#554433"
+        if v >= 45:   return "#1a1a1a"
+        if v >= 40:   return "#224433"
+        if v <= 20:   return "#006644"
+        if v <= 30:   return "#00b89c"
+        return "#1a3330"
+
+    def rsi_text_color(v):
+        if v >= 70 or v <= 30: return "#ffffff"
+        if v >= 60 or v <= 40: return "#cccccc"
+        return "#555555"
+
+    # Grid: 4 columns
+    COLS = 4
+    rows = [pairs_hm[i:i+COLS] for i in range(0, len(pairs_hm), COLS)]
+    rsi_map = {p: d["rsi"] for p, d in sorted_rsi}
+
+    heatmap_html = '<div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:4px; margin-bottom:8px;">'
+
+    for pair in pairs_hm:
+        v     = rsi_map[pair]
+        bg    = rsi_to_color(v)
+        tc    = rsi_text_color(v)
+        lbl, lc, _, _ = rsi_label(v)
+        badge = f'<div style="font-size:9px; color:{lc}; letter-spacing:0.08em; text-transform:uppercase; margin-top:2px;">{lbl}</div>' if lbl in ("OVERBOUGHT","OVERSOLD") else ""
+
+        heatmap_html += f"""
+        <div style="background:{bg}; padding:12px 10px; text-align:center;
+             border:1px solid #1a1a1a; border-radius:0;">
+            <div style="font-size:12px; font-weight:bold; color:#aaa;
+                font-family:'Times New Roman',Times,serif;">{pair}</div>
+            <div style="font-size:20px; font-weight:bold; color:{tc};
+                font-family:'Times New Roman',Times,serif; margin-top:4px;">{v:.1f}</div>
+            {badge}
+        </div>
+        """
+
+    heatmap_html += '</div>'
+    st.markdown(heatmap_html, unsafe_allow_html=True)
+
+    # ── Legend ────────────────────────────────────────────────
+    st.markdown("""
+    <div style="display:flex; gap:20px; margin-top:8px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:6px;">
+            <div style="width:12px; height:12px; background:#cc4422;"></div>
+            <span style="font-size:11px; color:#555; font-family:'Times New Roman',Times,serif; font-style:italic;">Overbought (&ge;70)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <div style="width:12px; height:12px; background:#8b1a00;"></div>
+            <span style="font-size:11px; color:#555; font-family:'Times New Roman',Times,serif; font-style:italic;">Extreme OB (&ge;80)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <div style="width:12px; height:12px; background:#00b89c;"></div>
+            <span style="font-size:11px; color:#555; font-family:'Times New Roman',Times,serif; font-style:italic;">Oversold (&le;30)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <div style="width:12px; height:12px; background:#006644;"></div>
+            <span style="font-size:11px; color:#555; font-family:'Times New Roman',Times,serif; font-style:italic;">Extreme OS (&le;20)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <div style="width:12px; height:12px; background:#1a1a1a; border:1px solid #333;"></div>
+            <span style="font-size:11px; color:#555; font-family:'Times New Roman',Times,serif; font-style:italic;">Neutral (40&ndash;60)</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Footer ────────────────────────────────────────────────
+    if rsi_failed:
+        st.markdown(f"""
+        <div style="margin-top:16px; font-size:11px; color:#333;
+             font-family:'Times New Roman',Times,serif; font-style:italic;">
+            Could not fetch: {', '.join(rsi_failed)}
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div style="margin-top:20px; font-size:11px; color:#333;
+         font-family:'Times New Roman',Times,serif; font-style:italic;">
+        RSI(14) on last closed {rsi_tf} candle &nbsp;&middot;&nbsp;
         Data via yfinance &nbsp;&middot;&nbsp; Refreshed {utc_now.strftime('%H:%M UTC')}
     </div>
     """, unsafe_allow_html=True)
