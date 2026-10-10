@@ -38,6 +38,12 @@ st.markdown("""
         color: #e0e0e0;
     }
 
+    /* Keep Streamlit's built-in icons (expander arrow, etc.) on their icon font. The font override above
+       would otherwise turn the icon name into visible text like "arrow_down". */
+    span[data-testid="stIconMaterial"] {
+        font-family: 'Material Symbols Rounded' !important;
+    }
+
     /* Inputs and selects */
     .stSelectbox > div, .stCheckbox, .stButton {
         font-family: 'Times New Roman', Times, serif !important;
