@@ -310,7 +310,7 @@ st.markdown(f"""
 # so daylight saving is handled automatically).
 # ════════════════════════════════════════════════════════════════
 
-GRAN_SECONDS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800}
+GRAN_SECONDS = {"M1": 60, "M5": 300, "M15": 900, "M30": 1800, "H1": 3600}
 
 DEFAULTS = dict(
     tokyo_hr=9,        # Tokyo open hour (JST)
@@ -709,6 +709,125 @@ def _group_table(t, key):
     return out
 
 
+# ───────────────────────────── Account (fixed lot size) ─────────────────────────────
+
+UNITS_PER_LOT = 100000
+USD_CONV = {  # quote currency -> (OANDA instrument for the USD rate, invert the rate?)
+    "USD": (None, False),
+    "JPY": ("USD_JPY", True),
+    "GBP": ("GBP_USD", False),
+    "CAD": ("USD_CAD", True),
+    "CHF": ("USD_CHF", True),
+    "AUD": ("AUD_USD", False),
+    "NZD": ("NZD_USD", False),
+}
+
+
+def _add_money(tr, quote, pip_size, units, start, end, env, token):
+    """Adds usd_rate and pnl_usd to one pair's trades.
+    pnl_usd = net pips x pip size x units x (quote currency -> USD rate at the exit time).
+    Returns (trades, ok). ok is False if the conversion rate could not be loaded."""
+    tr = tr.copy()
+    if tr.empty:
+        tr["usd_rate"] = pd.Series(dtype=float)
+        tr["pnl_usd"] = pd.Series(dtype=float)
+        return tr, True
+    conv = USD_CONV.get(quote)
+    if conv is None:
+        tr["usd_rate"] = np.nan
+        tr["pnl_usd"] = np.nan
+        return tr, False
+    instr, invert = conv
+    if instr is None:
+        tr["usd_rate"] = 1.0
+    else:
+        try:
+            fx = _load(instr, "H1", start.isoformat(), end.isoformat(), env, token)
+        except Exception:
+            fx = None
+        if fx is None or len(fx) == 0:
+            tr["usd_rate"] = np.nan
+            tr["pnl_usd"] = np.nan
+            return tr, False
+        opens = fx["open"].astype(float).to_numpy()
+        if invert:
+            opens = 1.0 / opens
+        fx_times = pd.DatetimeIndex(fx.index).tz_convert("UTC")
+        exits = pd.DatetimeIndex(tr["exit_time"]).tz_convert("UTC")
+        pos = np.clip(fx_times.searchsorted(exits, side="right") - 1, 0, len(opens) - 1)
+        tr["usd_rate"] = opens[pos]
+    tr["pnl_usd"] = tr["pips"] * pip_size * units * tr["usd_rate"]
+    return tr, True
+
+
+def _peak_open(t):
+    """Most trades open at the same time, across all pairs."""
+    ev = [(x, 1) for x in t["entry_time"]] + [(x, -1) for x in t["exit_time"]]
+    ev.sort(key=lambda e: (e[0], -e[1]))
+    cur = peak = 0
+    for _, d in ev:
+        cur += d
+        peak = max(peak, cur)
+    return peak
+
+
+def _show_account(res, t):
+    acct = res.get("account")
+    if not acct or "pnl_usd" not in t.columns:
+        return
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.markdown("**Account (fixed lot size)**")
+    failed = acct.get("failed", [])
+    if failed or t["pnl_usd"].isna().any():
+        names = ", ".join(failed) if failed else "some pairs"
+        st.warning(f"Dollar figures are unavailable because the USD conversion rate could not be loaded for: {names}. "
+                   "The pip results are unaffected.")
+        return
+
+    start_bal = float(acct["balance"])
+    lots = float(acct["lots"])
+    ts_ = t.sort_values(["exit_time", "id"]).reset_index(drop=True)
+    curve = np.concatenate([[start_bal], start_bal + ts_["pnl_usd"].cumsum().to_numpy()])
+    peak = np.maximum.accumulate(curve)
+    dd = peak - curve
+    with np.errstate(divide="ignore", invalid="ignore"):
+        dd_pct = np.where(peak > 0, dd / peak * 100.0, 0.0)
+    max_dd, max_dd_pct = float(dd.max()), float(dd_pct.max())
+    end_bal = float(curve[-1])
+    net = end_bal - start_bal
+    peak_open = _peak_open(t)
+
+    cards = [
+        ("Starting balance", f"${start_bal:,.0f}"),
+        ("Ending balance", f"${end_bal:,.0f}"),
+        ("Net profit", f"{'+' if net >= 0 else '-'}${abs(net):,.0f}"),
+        ("Return", f"{net / start_bal * 100:+.1f}%"),
+        (f"Max drawdown ({max_dd_pct:.1f}%)", f"${max_dd:,.0f}"),
+        ("Peak open trades", f"{peak_open}"),
+    ]
+    for col, (lab, val) in zip(st.columns(6), cards):
+        col.markdown(_card(lab, val), unsafe_allow_html=True)
+
+    st.caption(
+        f"Fixed {lots:.2f} lots ({int(round(lots * UNITS_PER_LOT)):,} units) per trade on a USD account. Net pips are converted to "
+        "dollars at the exchange rate when each trade closed. All pairs share one balance, with no compounding. "
+        f"Up to {peak_open} trades were open at once, about {peak_open * lots:.2f} lots of exposure. "
+        "Margin and leverage limits are not modeled."
+    )
+    if curve.min() <= 0:
+        st.warning(f"The balance fell to ${curve.min():,.0f} during this test. At this lot size, the account would have been wiped out.")
+
+    x0 = _chi(t["entry_time"]).min()
+    xs = pd.concat([pd.Series([x0]), _chi(ts_["exit_time"])], ignore_index=True)
+    fig = go.Figure(go.Scatter(x=xs, y=curve, mode="lines", name="Balance",
+                               line=dict(color=TEAL, width=2, shape="hv")))
+    fig.add_hline(y=start_bal, line_width=1, line_dash="dot", line_color="rgba(255,255,255,0.25)")
+    _layout(fig, 320)
+    fig.update_yaxes(title_text="Account balance ($)")
+    st.markdown("**Equity curve ($)**")
+    st.plotly_chart(fig, use_container_width=True)
+
+
 # ───────────────────────────── Trade inspector ─────────────────────────────
 
 def _trade_chart(row, res, token):
@@ -777,7 +896,7 @@ def _show_results(res, token):
         cards = [
             ("Trades", f"{s['trades']}"),
             ("Win rate", f"{s['win_rate']:.1f}%"),
-            ("Avg pips / trade", f"{s['avg_pips']:+.2f}"),
+            ("Trades won", f"{int((t['pips'] > 0).sum())}/{s['trades']}"),
             ("Total pips", f"{s['total_pips']:+.1f}"),
             ("Profit factor", _fmt_pf(s["profit_factor"])),
             ("Max drawdown (pips)", f"{s['max_dd']:.1f}"),
@@ -803,6 +922,8 @@ def _show_results(res, token):
         "the same move are counted separately, so the effective sample is smaller than the trade count."
     )
 
+    _show_account(res, t)
+
     # Per-pair table
     if t["pair"].nunique() > 1:
         rows = []
@@ -811,7 +932,9 @@ def _show_results(res, token):
             rows.append({"Pair": name, "Trades": r["trades"], "Win %": round(r["win_rate"], 1),
                          "Avg pips": round(r["avg_pips"], 2), "Total pips": round(r["total_pips"], 1),
                          "PF": round(r["profit_factor"], 2) if np.isfinite(r["profit_factor"]) else None,
-                         "Max DD": round(r["max_dd"], 1)})
+                         "Max DD": round(r["max_dd"], 1),
+                         "Net $": (round(g["pnl_usd"].sum(), 2)
+                                   if "pnl_usd" in g.columns and g["pnl_usd"].notna().all() else None)})
         st.markdown("**By pair**")
         st.dataframe(pd.DataFrame(rows).set_index("Pair"), use_container_width=True)
 
@@ -850,8 +973,13 @@ def _show_results(res, token):
     disp = t.copy()
     for col in ["form_time", "fill_time", "entry_time", "exit_time"]:
         disp[col] = _chi(disp[col]).dt.strftime("%Y-%m-%d %H:%M")
-    show = disp[["pair", "id", "side", "form_time", "fill_time", "entry_time", "exit_time",
-                 "entry_px", "stop", "tp", "exit_px", "reason", "pips", "hours_fill_to_entry"]].copy()
+    list_cols = ["pair", "id", "side", "form_time", "fill_time", "entry_time", "exit_time",
+                 "entry_px", "stop", "tp", "exit_px", "reason", "pips", "hours_fill_to_entry"]
+    if "pnl_usd" in disp.columns:
+        list_cols.append("pnl_usd")
+    show = disp[list_cols].copy()
+    if "pnl_usd" in show.columns:
+        show["pnl_usd"] = show["pnl_usd"].round(2)
     show["pips"] = show["pips"].round(2)
     show["hours_fill_to_entry"] = show["hours_fill_to_entry"].round(1)
     st.dataframe(show, use_container_width=True, height=300)
@@ -892,7 +1020,7 @@ def render_backtest_tab(watchlist):
     with st.form("bt_form"):
         c1, c2, c3 = st.columns([3, 1, 2])
         pairs = c1.multiselect("Pairs", pair_options, default=["GBP/JPY"] if "GBP/JPY" in pair_options else None)
-        gran = c2.selectbox("Timeframe", list(GRAN_SECONDS.keys()), index=1)
+        gran = c2.selectbox("Timeframe", ["M1", "M5", "M15", "M30"], index=1)
         dr = c3.date_input("Date range", value=(date.today() - timedelta(days=30), date.today()),
                            max_value=date.today())
 
@@ -914,6 +1042,10 @@ def render_backtest_tab(watchlist):
             max_gaps = r3[1].number_input("Max gaps tracked", 1, 1000, 200, 10)
             max_age = r3[2].number_input("Max gap age (bars, 0 = none)", 0, 100000, 0, 10)
             both = r3[3].selectbox("Stop and target in one bar", ["Stop first (conservative)", "Target first"])
+            r4 = st.columns(2)
+            balance = r4[0].number_input("Starting balance ($)", 100.0, 100000000.0, 10000.0, 100.0)
+            lots = r4[1].number_input("Lot size per trade (1 lot = 100,000 units)", 0.01, 100.0, 0.10, 0.01,
+                                      help="Fixed size for every trade. Dollar figures assume a USD account.")
             skip_breaks = st.checkbox("Ignore gaps spanning a weekend or other market break", value=True)
 
         submitted = st.form_submit_button("Run backtest")
@@ -937,7 +1069,8 @@ def render_backtest_tab(watchlist):
             if gran == "M1" and (dr[1] - dr[0]).days > 90:
                 st.warning("A 1-minute range this long can be slow to download and run. Consider fewer pairs or days.")
 
-            all_tr, meta = [], {}
+            all_tr, meta, money_fail = [], {}, []
+            units = int(round(lots * UNITS_PER_LOT))
             counts = dict(formed=0, filled=0, dead_outside=0, closed_through=0, signals=0, skipped=0, entries=0)
             bar = st.progress(0.0)
             for k, name in enumerate(pairs):
@@ -959,6 +1092,11 @@ def render_backtest_tab(watchlist):
                     out = run_backtest(df, pip, GRAN_SECONDS[gran], **params)
                 tr = out["trades"].copy()
                 tr.insert(0, "pair", name)
+                quote = a["ticker"].replace("=X", "")[3:6]
+                tr, money_ok = _add_money(tr, quote, pip, units, start, end, env, token)
+                if not money_ok:
+                    money_fail.append(name)
+                    st.warning(f"{name}: could not load the {quote} to USD rate, so dollar figures are unavailable.")
                 all_tr.append(tr)
                 for key in counts:
                     counts[key] += out["counts"][key]
@@ -968,7 +1106,8 @@ def render_backtest_tab(watchlist):
 
             if all_tr:
                 trades = pd.concat(all_tr, ignore_index=True)
-                st.session_state["bt"] = dict(trades=trades, counts=counts, meta=meta, params={**DEFAULTS, **params})
+                st.session_state["bt"] = dict(trades=trades, counts=counts, meta=meta, params={**DEFAULTS, **params},
+                                              account=dict(balance=balance, lots=lots, failed=money_fail))
             else:
                 st.session_state.pop("bt", None)
 
